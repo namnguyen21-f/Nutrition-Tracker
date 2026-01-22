@@ -5,7 +5,7 @@ import {
 import { 
   Plus, User, Scale, Utensils, LayoutDashboard,
   Trash2, X, TrendingUp, Flame, Zap, 
-  Sparkles, Coffee, ChefHat, Apple, Search, Check, Info, Calendar, Save, Target, Flag, Download, FileJson, Link, Upload
+  Sparkles, Coffee, ChefHat, Apple, Search, Check, Info, Calendar, Save, Target, Flag, Download, FileJson, Link, Upload, Share, Clock
 } from 'lucide-react';
 
 // --- CONSTANTS ---
@@ -60,38 +60,32 @@ export default function App() {
   const [manualCal, setManualCal] = useState("");
   const fileInputRef = useRef(null);
 
-  // File System State
   const [fileHandle, setFileHandle] = useState(null);
   const [fileName, setFileName] = useState("No file linked");
-  
+
   const [profile, setProfile] = useState(() => {
     const saved = localStorage.getItem('nutri_profile_v13');
     return saved ? JSON.parse(saved) : {
       name: 'User', gender: 'male', age: 25, height: 175, weight: 70, targetWeight: 65,
-      activityLevel: 'moderate', startDate: getTodayKey(), targetDate: '2026-03-01'
+      activityLevel: 'moderate', startDate: getTodayKey(), targetDate: '2026-03-01', startTime: '08:00'
     };
   });
-  
+
   const [logs, setLogs] = useState(() => {
     const saved = localStorage.getItem('nutri_logs_v13');
     return saved ? JSON.parse(saved) : {};
   });
 
-  // --- AUTO-SAVE TO FILE SYSTEM ---
   useEffect(() => {
     localStorage.setItem('nutri_profile_v13', JSON.stringify(profile));
     localStorage.setItem('nutri_logs_v13', JSON.stringify(logs));
-    
-    // Automatic write to local file if linked
     if (fileHandle) {
       const autoSave = async () => {
         try {
           const writable = await fileHandle.createWritable();
           await writable.write(JSON.stringify({ profile, logs, mealPlans }, null, 2));
           await writable.close();
-        } catch (err) {
-          console.error("Auto-save failed", err);
-        }
+        } catch (err) { console.error("Auto-save failed", err); }
       };
       autoSave();
     }
@@ -103,34 +97,41 @@ export default function App() {
   const netToday = todayLog.intake - (todayLog.outtake || 0);
   const isOverToday = netToday > (stats?.targetCalories || 0);
 
-  // --- FILE SYSTEM ACCESS ---
+  const handleShare = async () => {
+    const dataStr = JSON.stringify({ profile, logs, mealPlans }, null, 2);
+    const file = new File([dataStr], `nutritrack_data_${todayKey}.json`, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'NutriTrack Data Backup',
+          text: 'Current nutrition logs and profile'
+        });
+      } catch (err) { if (err.name !== 'AbortError') alert("Sharing failed"); }
+    } else { alert("Sharing not supported on this device. Use 'Export' instead."); }
+  };
+
   const linkLocalFile = async () => {
     try {
       const [handle] = await window.showOpenFilePicker({
         types: [{ description: 'JSON Data File', accept: { 'application/json': ['.json'] } }],
         multiple: false
       });
-      
       if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
         await handle.requestPermission({ mode: 'readwrite' });
       }
-
       const file = await handle.getFile();
       const content = await file.text();
-      
       if (content) {
         const imported = JSON.parse(content);
         if (imported.profile) setProfile(imported.profile);
         if (imported.logs) setLogs(imported.logs);
         if (imported.mealPlans) setMealPlans(imported.mealPlans);
       }
-
       setFileHandle(handle);
       setFileName(handle.name);
-      alert("File linked successfully. App is now syncing to " + handle.name);
-    } catch (err) {
-      console.error("File access denied", err);
-    }
+      alert("File linked successfully!");
+    } catch (err) { console.error("File access denied", err); }
   };
 
   const handleExport = () => {
@@ -158,7 +159,6 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // --- ACTIONS ---
   const addEntry = (type) => {
     if (!manualName || !manualCal) return;
     const item = { name: manualName, cal: parseFloat(manualCal), id: Date.now() };
@@ -273,7 +273,7 @@ export default function App() {
 
             <section className="space-y-3">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2">Recent Logs</h3>
-              <div className="max-h-64 overflow-y-auto space-y-2 pr-1 pb-4 scrollbar-hide">
+              <div className="max-h-80 overflow-y-auto space-y-2 pr-1 pb-4 custom-scrollbar">
                 {todayLog.foods.length === 0 && todayLog.activities.length === 0 && (
                    <p className="text-center py-6 text-slate-300 text-[10px] font-black uppercase tracking-widest">No entries yet</p>
                 )}
@@ -283,6 +283,18 @@ export default function App() {
                 {todayLog.activities?.map(a => (
                   <LogItem key={a.id} title={a.name} val={`-${a.cal}`} icon={<Flame size={16}/>} onDel={() => removeEntry('act', a.id)} color="orange" />
                 ))}
+              </div>
+            </section>
+
+            {/* UPDATED: Intake / Outtake buttons now part of the scrolling content */}
+            <section className="pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => setShowFoodModal(true)} className="bg-indigo-600 text-white p-5 rounded-[24px] font-black flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-indigo-100/40">
+                  <Plus size={20}/> Intake
+                </button>
+                <button onClick={() => setShowOuttakeModal(true)} className="bg-orange-500 text-white p-5 rounded-[24px] font-black flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-orange-100/40">
+                  <Flame size={20}/> Outtake
+                </button>
               </div>
             </section>
           </>
@@ -296,7 +308,7 @@ export default function App() {
                   <h4 className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-2">Planned Total</h4>
                   <div className="text-4xl font-black">
                     {Object.values(mealPlans).flat().reduce((a, b) => a + b.cal, 0)} <span className="text-lg opacity-60">kcal</span>
-                  </div>
+                </div>
                 </div>
                 <div className="text-right">
                   <h4 className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-2">Target</h4>
@@ -359,26 +371,22 @@ export default function App() {
 
         {activeTab === 'profile' && (
            <div className="space-y-6 pb-4 animate-in slide-in-from-bottom-4">
-              {/* FILE SYNC SECTION */}
               <div className="bg-indigo-600 p-8 rounded-[40px] text-white shadow-xl relative overflow-hidden">
                 <div className="relative z-10">
                     <div className="flex items-center gap-2 mb-4">
                         <FileJson size={20} className="text-indigo-200" />
-                        <h3 className="font-black uppercase text-xs tracking-widest text-indigo-100">Local File Auto-Sync</h3>
+                        <h3 className="font-black uppercase text-xs tracking-widest text-indigo-100">Data Sync & Share</h3>
                     </div>
-                    <div className="bg-white/10 p-4 rounded-2xl mb-6 backdrop-blur-sm border border-white/10">
-                        <div className="text-[10px] font-black uppercase text-indigo-200 mb-1">Target File:</div>
-                        <div className="text-sm font-bold truncate">{fileName}</div>
+                    <div className="grid grid-cols-1 gap-3 mb-6">
+                      <button onClick={linkLocalFile} className="w-full bg-white text-indigo-600 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform">
+                          <Link size={16} /> {fileHandle ? "CHANGE LINKED FILE" : "SET PC STORAGE"}
+                      </button>
+                      <button onClick={handleShare} className="w-full bg-indigo-500/50 border border-white/20 text-white py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 backdrop-blur-sm active:scale-95 transition-transform">
+                          <Share size={16} /> SHARE TO FILES (iOS)
+                      </button>
                     </div>
-                    <button 
-                        onClick={linkLocalFile}
-                        className="w-full bg-white text-indigo-600 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"
-                    >
-                        <Link size={16} />
-                        {fileHandle ? "CHANGE LINKED FILE" : "SET STORAGE FILE"}
-                    </button>
-                    <p className="text-[9px] text-indigo-200 mt-4 text-center font-bold uppercase leading-relaxed">
-                        Changes are automatically saved to this file in real-time.
+                    <p className="text-[9px] text-indigo-200 text-center font-bold uppercase leading-relaxed">
+                        Use "Share" to manually save to iCloud/Files on mobile.
                     </p>
                 </div>
                 <Sparkles className="absolute -right-4 -bottom-4 text-white/5 w-32 h-32 rotate-12" />
@@ -390,40 +398,61 @@ export default function App() {
                   <User className="text-indigo-600" size={20} />
                 </div>
                 <div className="space-y-4">
-                    <input className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} />
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Full Name</label>
+                      <input className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <select className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none" value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})}>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                        </select>
-                        <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none" value={profile.age} onChange={e => setProfile({...profile, age: parseInt(e.target.value)})} />
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Gender</label>
+                          <select className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none" value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})}>
+                              <option value="male">Male</option>
+                              <option value="female">Female</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Age</label>
+                          <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none" value={profile.age} onChange={e => setProfile({...profile, age: parseInt(e.target.value)})} />
+                        </div>
                     </div>
                 </div>
               </div>
 
               <div className="bg-white p-8 rounded-[40px] border border-slate-100 space-y-6 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-black uppercase text-xs tracking-widest text-slate-400">Weight & Dates</h3>
+                  <h3 className="font-black uppercase text-xs tracking-widest text-slate-400">Weight & Goals</h3>
                   <Target className="text-orange-500" size={20} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-[10px] font-black text-slate-400">Current (kg)</label>
-                        <input type="number" step="0.1" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm mt-1" value={profile.weight} onChange={e => setProfile({...profile, weight: parseFloat(e.target.value)})} />
+                      <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Current (kg)</label>
+                      <input type="number" step="0.1" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm border-2 border-indigo-50" value={profile.weight} onChange={e => setProfile({...profile, weight: parseFloat(e.target.value)})} />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-slate-400">Target (kg)</label>
-                        <input type="number" step="0.1" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm mt-1 border-2 border-orange-100" value={profile.targetWeight} onChange={e => setProfile({...profile, targetWeight: parseFloat(e.target.value)})} />
+                      <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Target (kg)</label>
+                      <input type="number" step="0.1" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm border-2 border-orange-50" value={profile.targetWeight} onChange={e => setProfile({...profile, targetWeight: parseFloat(e.target.value)})} />
                     </div>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                    <input type="date" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm" value={profile.startDate} onChange={e => setProfile({...profile, startDate: e.target.value})} />
-                    <input type="date" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm border-2 border-indigo-100" value={profile.targetDate} onChange={e => setProfile({...profile, targetDate: e.target.value})} />
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><Calendar size={10}/> Start Date</label>
+                        <input type="date" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-[10px]" value={profile.startDate} onChange={e => setProfile({...profile, startDate: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><Clock size={10}/> Start Time</label>
+                        <input type="time" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-[10px]" value={profile.startTime} onChange={e => setProfile({...profile, startTime: e.target.value})} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><Flag size={10}/> Target Date</label>
+                      <input type="date" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-[10px] border-2 border-indigo-100" value={profile.targetDate} onChange={e => setProfile({...profile, targetDate: e.target.value})} />
+                    </div>
                 </div>
               </div>
 
               <div className="bg-slate-100/50 p-8 rounded-[40px] space-y-6">
-                <h3 className="font-black uppercase text-xs tracking-widest text-slate-400">Manual Backup</h3>
+                <h3 className="font-black uppercase text-xs tracking-widest text-slate-400">Backup Tools</h3>
                 <div className="grid grid-cols-2 gap-4">
                     <button onClick={handleExport} className="bg-white text-slate-600 p-4 rounded-2xl font-black text-xs flex flex-col items-center gap-2 shadow-sm">
                         <Download size={20} /> EXPORT
@@ -440,15 +469,6 @@ export default function App() {
         )}
       </main>
 
-      {activeTab === 'dashboard' && (
-        <div className="fixed bottom-24 left-0 right-0 px-4 z-40">
-           <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setShowFoodModal(true)} className="bg-indigo-600 text-white p-5 rounded-[24px] font-black flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-indigo-100/40"><Plus size={20}/> Intake</button>
-              <button onClick={() => setShowOuttakeModal(true)} className="bg-orange-500 text-white p-5 rounded-[24px] font-black flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-orange-100/40"><Flame size={20}/> Outtake</button>
-            </div>
-        </div>
-      )}
-
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200 p-[6px] flex justify-around items-center z-50">
         <NavBtn act={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={<LayoutDashboard size={22}/>} />
         <NavBtn act={activeTab === 'planner'} onClick={() => setActiveTab('planner')} icon={<ChefHat size={22}/>} />
@@ -456,6 +476,7 @@ export default function App() {
         <NavBtn act={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={22}/>} />
       </nav>
 
+      {/* MODALS */}
       {showFoodModal && (
         <ManualEntryModal title="Log Intake" color="indigo" onCancel={() => setShowFoodModal(false)} onAdd={() => addEntry('food')} name={manualName} setName={setManualName} cal={manualCal} setCal={setManualCal} />
       )}
