@@ -5,7 +5,8 @@ import {
 import { 
   Plus, User, Scale, Utensils, LayoutDashboard,
   Trash2, X, TrendingUp, Flame, Zap, 
-  Sparkles, Coffee, ChefHat, Apple, Search, Check, Info, Calendar, Save, Target, Flag, Download, FileJson, Link, Upload, Share, Clock
+  Sparkles, Coffee, ChefHat, Apple, Search, Check, Info, Calendar, Save, Target, Flag, Download, FileJson, Link, Upload, Share, Clock,
+  Droplets, GlassWater
 } from 'lucide-react';
 
 // --- CONSTANTS ---
@@ -18,19 +19,69 @@ const ACTIVITY_LEVELS = {
 };
 
 const VIETNAMESE_FOOD_DB = [
+  // ===== Main dishes =====
   { name: "Phở Bò (Beef Pho)", cal: 450 },
   { name: "Phở Gà (Chicken Pho)", cal: 400 },
-  { name: "Bánh Mì Đặc Biệt", cal: 450 },
-  { name: "Cơm Tấm Sườn Bì Chả", cal: 650 },
-  { name: "Bún Chả Hà Nội", cal: 520 },
-  { name: "Bún Bò Huế", cal: 550 },
-  { name: "Bún Riêu Cua", cal: 450 },
-  { name: "Cơm Gà Xối Mỡ", cal: 700 },
-  { name: "Gỏi Cuốn (2 pcs)", cal: 160 },
-  { name: "Cà Phê Sữa Đá", cal: 180 },
-  { name: "Trà Sữa Trân Châu", cal: 450 }
-];
+  { name: "Phở Tái", cal: 430 },
+  { name: "Phở Nạm", cal: 480 },
 
+  { name: "Bún Bò Huế", cal: 550 },
+  { name: "Bún Chả Hà Nội", cal: 520 },
+  { name: "Bún Riêu Cua", cal: 450 },
+  { name: "Bún Mọc", cal: 480 },
+  { name: "Bún Thịt Nướng", cal: 600 },
+
+  { name: "Cơm Tấm Sườn", cal: 600 },
+  { name: "Cơm Tấm Sườn Bì Chả", cal: 650 },
+  { name: "Cơm Gà Xối Mỡ", cal: 700 },
+  { name: "Cơm Gà Luộc", cal: 520 },
+  { name: "Cơm Sườn Trứng", cal: 620 },
+  { name: "Cơm Bò Lúc Lắc", cal: 650 },
+
+  { name: "Bánh Mì Thịt", cal: 420 },
+  { name: "Bánh Mì Đặc Biệt", cal: 450 },
+  { name: "Bánh Mì Xíu Mại", cal: 480 },
+
+  { name: "Mì Quảng Gà", cal: 500 },
+  { name: "Hủ Tiếu Nam Vang", cal: 520 },
+  { name: "Hủ Tiếu Bò Kho", cal: 600 },
+  { name: "Bò Kho (with bread)", cal: 580 },
+
+  { name: "Cháo Gà", cal: 380 },
+  { name: "Cháo Lòng", cal: 450 },
+  { name: "Xôi Gà", cal: 550 },
+
+  // ===== Light food =====
+  { name: "Gỏi Cuốn (2 pcs)", cal: 160 },
+  { name: "Chả Giò (2 pcs)", cal: 300 },
+  { name: "Bánh Cuốn", cal: 400 },
+
+  // ===== Coffee & milk =====
+  { name: "Cà Phê Đen", cal: 20 },
+  { name: "Cà Phê Sữa Đá", cal: 180 },
+  { name: "Bạc Xỉu", cal: 220 },
+  { name: "Sữa Tươi Không Đường (200ml)", cal: 90 },
+  { name: "Sữa Tươi Có Đường (200ml)", cal: 130 },
+  { name: "Sữa Đậu Nành", cal: 120 },
+
+  // ===== Tea & milk tea =====
+  { name: "Trà Đá", cal: 0 },
+  { name: "Trà Nóng", cal: 2 },
+  { name: "Trà Chanh", cal: 120 },
+  { name: "Trà Đào", cal: 140 },
+  { name: "Trà Sữa Trân Châu", cal: 450 },
+  { name: "Trà Sữa Ít Đường", cal: 350 },
+
+  // ===== Juice & drinks =====
+  { name: "Nước Cam", cal: 110 },
+  { name: "Nước Mía", cal: 180 },
+  { name: "Sinh Tố Bơ", cal: 300 },
+  { name: "Sinh Tố Xoài", cal: 250 },
+  { name: "Nước Ngọt Có Gas", cal: 140 },
+
+  // ===== Alcohol (optional) =====
+  { name: "Bia Lon (330ml)", cal: 150 }
+];
 const calculateNutrition = (profile) => {
   const { age, gender, height, weight, activityLevel, targetWeight, startDate, targetDate } = profile;
   if (!age || !height || !weight || !startDate || !targetDate) return null;
@@ -67,7 +118,8 @@ export default function App() {
     const saved = localStorage.getItem('nutri_profile_v13');
     return saved ? JSON.parse(saved) : {
       name: 'User', gender: 'male', age: 25, height: 175, weight: 70, targetWeight: 65,
-      activityLevel: 'moderate', startDate: getTodayKey(), targetDate: '2026-03-01', startTime: '08:00'
+      activityLevel: 'moderate', startDate: getTodayKey(), targetDate: '2026-03-01', startTime: '08:00',
+      waterGoal: 8
     };
   });
 
@@ -93,20 +145,25 @@ export default function App() {
 
   const stats = useMemo(() => calculateNutrition(profile), [profile]);
   const todayKey = getTodayKey();
-  const todayLog = logs[todayKey] || { weight: profile.weight, intake: 0, outtake: 0, foods: [], activities: [] };
+  
+  // Updated todayLog to include water
+  const todayLog = logs[todayKey] || { weight: profile.weight, intake: 0, outtake: 0, foods: [], activities: [], water: 0 };
   const netToday = todayLog.intake - (todayLog.outtake || 0);
   const isOverToday = netToday > (stats?.targetCalories || 0);
+
+  // NEW: Water Tracker Function
+  const updateWater = (amount) => {
+    const currentWater = todayLog.water || 0;
+    const newWater = Math.max(0, currentWater + amount);
+    setLogs({ ...logs, [todayKey]: { ...todayLog, water: newWater } });
+  };
 
   const handleShare = async () => {
     const dataStr = JSON.stringify({ profile, logs, mealPlans }, null, 2);
     const file = new File([dataStr], `nutritrack_data_${todayKey}.json`, { type: 'application/json' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
-        await navigator.share({
-          files: [file],
-          title: 'NutriTrack Data Backup',
-          text: 'Current nutrition logs and profile'
-        });
+        await navigator.share({ files: [file], title: 'NutriTrack Data Backup', text: 'Current nutrition logs and profile' });
       } catch (err) { if (err.name !== 'AbortError') alert("Sharing failed"); }
     } else { alert("Sharing not supported on this device. Use 'Export' instead."); }
   };
@@ -162,7 +219,7 @@ export default function App() {
   const addEntry = (type) => {
     if (!manualName || !manualCal) return;
     const item = { name: manualName, cal: parseFloat(manualCal), id: Date.now() };
-    const current = logs[todayKey] || { weight: profile.weight, intake: 0, outtake: 0, foods: [], activities: [] };
+    const current = logs[todayKey] || { weight: profile.weight, intake: 0, outtake: 0, foods: [], activities: [], water: 0 };
     if (type === 'food') {
       setLogs({ ...logs, [todayKey]: { ...current, intake: (current.intake || 0) + item.cal, foods: [...(current.foods || []), item] }});
       setShowFoodModal(false);
@@ -205,20 +262,20 @@ export default function App() {
   const toggleSelection = (food) => {
     if (tempSelection.find(s => s.name === food.name)) {
       setTempSelection(tempSelection.filter(s => s.name !== food.name));
-    } else if (tempSelection.length < 2) {
+    } else {
       setTempSelection([...tempSelection, food]);
     }
   };
 
   const applyMealPlan = () => {
     setMealPlans({ ...mealPlans, [editingMealType]: tempSelection });
-    setEditingMealType(null); setTempSelection([]); setSearchQuery("");
+    setEditingMealType(null); setTempSelection([]); setSearchQuery(""); setManualName(""); setManualCal("");
   };
 
   const logPlannedMeal = (type) => {
     const items = mealPlans[type];
     if (!items.length) return;
-    const current = logs[todayKey] || { weight: profile.weight, intake: 0, outtake: 0, foods: [], activities: [] };
+    const current = logs[todayKey] || { weight: profile.weight, intake: 0, outtake: 0, foods: [], activities: [], water: 0 };
     const totalCal = items.reduce((acc, curr) => acc + curr.cal, 0);
     const newFoods = items.map(i => ({ ...i, id: Date.now() + Math.random() }));
     setLogs({ ...logs, [todayKey]: { ...current, intake: (current.intake || 0) + totalCal, foods: [...(current.foods || []), ...newFoods] }});
@@ -263,6 +320,28 @@ export default function App() {
               </div>
             </div>
 
+            {/* NEW: Water Tracker Card */}
+            <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm space-y-4">
+               <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center"><Droplets size={20}/></div>
+                    <div>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hydration</h3>
+                      <div className="text-xl font-black">{todayLog.water || 0} / {profile.waterGoal || 8} <span className="text-xs text-slate-300">cups</span></div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => updateWater(-1)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center font-black">-</button>
+                    <button onClick={() => updateWater(1)} className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black">+</button>
+                  </div>
+               </div>
+               <div className="flex justify-between gap-1">
+                 {[...Array(profile.waterGoal || 8)].map((_, i) => (
+                   <div key={i} className={`h-2 flex-1 rounded-full transition-all duration-500 ${i < (todayLog.water || 0) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]' : 'bg-slate-100'}`} />
+                 ))}
+               </div>
+            </div>
+
             <div onClick={() => setShowWeightModal(true)} className="bg-white p-6 rounded-[32px] border border-slate-100 flex items-center justify-between cursor-pointer">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600"><Scale size={24}/></div>
@@ -286,7 +365,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* UPDATED: Intake / Outtake buttons now part of the scrolling content */}
             <section className="pt-4">
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => setShowFoodModal(true)} className="bg-indigo-600 text-white p-5 rounded-[24px] font-black flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-indigo-100/40">
@@ -318,10 +396,10 @@ export default function App() {
               <Sparkles className="absolute -right-4 -bottom-4 text-white/10 w-32 h-32 rotate-12" />
             </div>
             <div className="space-y-4">
-              <MealSlot icon={<Coffee/>} label="Breakfast" selection={mealPlans.breakfast} onClick={() => setEditingMealType('breakfast')} onLog={() => logPlannedMeal('breakfast')} />
-              <MealSlot icon={<ChefHat/>} label="Lunch" selection={mealPlans.lunch} onClick={() => setEditingMealType('lunch')} onLog={() => logPlannedMeal('lunch')} />
-              <MealSlot icon={<Utensils/>} label="Dinner" selection={mealPlans.dinner} onClick={() => setEditingMealType('dinner')} onLog={() => logPlannedMeal('dinner')} />
-              <MealSlot icon={<Apple/>} label="Other / Snack" selection={mealPlans.other} onClick={() => setEditingMealType('other')} onLog={() => logPlannedMeal('other')} />
+              <MealSlot icon={<Coffee/>} label="Breakfast" selection={mealPlans.breakfast} onClick={() => { setEditingMealType('breakfast'); setTempSelection(mealPlans.breakfast); }} onLog={() => logPlannedMeal('breakfast')} />
+              <MealSlot icon={<ChefHat/>} label="Lunch" selection={mealPlans.lunch} onClick={() => { setEditingMealType('lunch'); setTempSelection(mealPlans.lunch); }} onLog={() => logPlannedMeal('lunch')} />
+              <MealSlot icon={<Utensils/>} label="Dinner" selection={mealPlans.dinner} onClick={() => { setEditingMealType('dinner'); setTempSelection(mealPlans.dinner); }} onLog={() => logPlannedMeal('dinner')} />
+              <MealSlot icon={<Apple/>} label="Other / Snack" selection={mealPlans.other} onClick={() => { setEditingMealType('other'); setTempSelection(mealPlans.other); }} onLog={() => logPlannedMeal('other')} />
             </div>
           </div>
         )}
@@ -373,7 +451,7 @@ export default function App() {
            <div className="space-y-6 pb-4 animate-in slide-in-from-bottom-4">
               <div className="bg-indigo-600 p-8 rounded-[40px] text-white shadow-xl relative overflow-hidden">
                 <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-4">
                         <FileJson size={20} className="text-indigo-200" />
                         <h3 className="font-black uppercase text-xs tracking-widest text-indigo-100">Data Sync & Share</h3>
                     </div>
@@ -448,6 +526,11 @@ export default function App() {
                       <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><Flag size={10}/> Target Date</label>
                       <input type="date" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-[10px] border-2 border-indigo-100" value={profile.targetDate} onChange={e => setProfile({...profile, targetDate: e.target.value})} />
                     </div>
+                    {/* NEW: Water Goal in Profile */}
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><GlassWater size={10}/> Water Goal (Cups)</label>
+                      <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-sm outline-none" value={profile.waterGoal || 8} onChange={e => setProfile({...profile, waterGoal: parseInt(e.target.value)})} />
+                    </div>
                 </div>
               </div>
 
@@ -478,10 +561,10 @@ export default function App() {
 
       {/* MODALS */}
       {showFoodModal && (
-        <ManualEntryModal title="Log Intake" color="indigo" onCancel={() => setShowFoodModal(false)} onAdd={() => addEntry('food')} name={manualName} setName={setManualName} cal={manualCal} setCal={setManualCal} />
+        <ManualEntryModal title="Log Intake" color="indigo" onCancel={() => { setShowFoodModal(false); setManualName(""); setManualCal(""); }} onAdd={() => addEntry('food')} name={manualName} setName={setManualName} cal={manualCal} setCal={setManualCal} />
       )}
       {showOuttakeModal && (
-        <ManualEntryModal title="Log Exercise" color="orange" onCancel={() => setShowOuttakeModal(false)} onAdd={() => addEntry('act')} name={manualName} setName={setManualName} cal={manualCal} setCal={setManualCal} />
+        <ManualEntryModal title="Log Exercise" color="orange" onCancel={() => { setShowOuttakeModal(false); setManualName(""); setManualCal(""); }} onAdd={() => addEntry('act')} name={manualName} setName={setManualName} cal={manualCal} setCal={setManualCal} />
       )}
       {showWeightModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-6">
@@ -504,22 +587,63 @@ export default function App() {
       {editingMealType && (
         <div className="fixed inset-0 z-[60] bg-white flex flex-col p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-black capitalize">{editingMealType}</h2>
-            <button onClick={() => setEditingMealType(null)} className="p-2 bg-slate-100 rounded-full"><X size={20}/></button>
+            <h2 className="text-xl font-black capitalize">Plan {editingMealType}</h2>
+            <button onClick={() => { setEditingMealType(null); setManualName(""); setManualCal(""); }} className="p-2 bg-slate-100 rounded-full"><X size={20}/></button>
           </div>
-          <div className="flex-1 overflow-y-auto space-y-4 pb-20 scrollbar-hide">
-             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search food..." className="w-full bg-slate-50 p-4 rounded-2xl font-bold" />
+
+          <div className="mb-6 p-5 bg-indigo-50 rounded-[32px] border border-indigo-100 space-y-3">
+            <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest ml-1">Manual Input</h4>
+            <div className="flex gap-2">
+              <input 
+                placeholder="Item Title" 
+                className="flex-[2] bg-white p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-indigo-200 transition-all"
+                value={manualName} 
+                onChange={e => setManualName(e.target.value)} 
+              />
+              <input 
+                type="number" 
+                placeholder="Kcal" 
+                className="flex-1 bg-white p-4 rounded-2xl font-bold text-sm outline-none border-2 border-transparent focus:border-indigo-200 transition-all"
+                value={manualCal} 
+                onChange={e => setManualCal(e.target.value)} 
+              />
+            </div>
+            <button 
+              onClick={() => {
+                if(manualName && manualCal) {
+                  setTempSelection([...tempSelection, { name: manualName, cal: parseFloat(manualCal) }]);
+                  setManualName(""); setManualCal("");
+                }
+              }}
+              className="w-full py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100"
+            >
+              Add Custom Item
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-4 pb-32 scrollbar-hide">
+             <div className="relative">
+               <Search className="absolute left-4 top-4 text-slate-300" size={18} />
+               <input 
+                 value={searchQuery} 
+                 onChange={e => setSearchQuery(e.target.value)} 
+                 placeholder="Search database..." 
+                 className="w-full bg-slate-50 p-4 pl-12 rounded-2xl font-bold outline-none" 
+               />
+             </div>
              {VIETNAMESE_FOOD_DB.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase())).map(food => {
                 const isSelected = tempSelection.find(s => s.name === food.name);
                 return (
-                  <div key={food.name} onClick={() => toggleSelection(food)} className={`p-4 rounded-2xl border flex justify-between ${isSelected ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 bg-white'}`}>
-                    <div><div className="font-bold">{food.name}</div><div className="text-[10px] text-slate-400">{food.cal} kcal</div></div>
+                  <div key={food.name} onClick={() => toggleSelection(food)} className={`p-4 rounded-2xl border flex justify-between items-center ${isSelected ? 'border-indigo-600 bg-indigo-50' : 'border-slate-100 bg-white'}`}>
+                    <div><div className="font-bold text-sm">{food.name}</div><div className="text-[10px] text-slate-400">{food.cal} kcal</div></div>
                     {isSelected ? <Check className="text-indigo-600" /> : <Plus className="text-slate-300" />}
                   </div>
                 )
              })}
           </div>
-          <button onClick={applyMealPlan} className="fixed bottom-10 left-6 right-6 bg-indigo-600 text-white p-5 rounded-[24px] font-black">Apply Selection</button>
+          <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white to-transparent">
+            <button onClick={applyMealPlan} className="w-full bg-slate-900 text-white p-5 rounded-[24px] font-black shadow-xl">Apply Selection ({tempSelection.length})</button>
+          </div>
         </div>
       )}
     </div>
@@ -544,7 +668,7 @@ function MealSlot({ icon, label, selection, onClick, onLog }) {
       </div>
       {selection.length > 0 ? (
         <div className="space-y-2">
-          {selection.map((s, i) => (<div key={i} className="p-3 bg-slate-50 rounded-2xl text-sm font-bold">{s.name}</div>))}
+          {selection.map((s, i) => (<div key={i} className="p-3 bg-slate-50 rounded-2xl text-sm font-bold flex justify-between"><span>{s.name}</span> <span className="text-indigo-400">{s.cal}</span></div>))}
           <button onClick={onLog} className="w-full py-3 bg-indigo-600 text-white rounded-2xl text-xs font-black">Log Today</button>
         </div>
       ) : (<div onClick={onClick} className="py-6 text-center border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-black text-slate-300">Tap to add</div>)}
